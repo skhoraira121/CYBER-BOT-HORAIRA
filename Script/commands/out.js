@@ -4,7 +4,7 @@ module.exports.config = {
   hasPermssion: 2,
   credits: "𝐂𝐘𝐁𝐄𝐑 ☢️_𖣘 -𝐁𝐎𝐓 ⚠️ 𝑻𝑬𝑨𝑴_ ☢️",
   description: "out box",
-  commandCategory: "61575092731225",
+  commandCategory: "HORAIRA",
   usages: "out [tid]",
   cooldowns: 3
 };
