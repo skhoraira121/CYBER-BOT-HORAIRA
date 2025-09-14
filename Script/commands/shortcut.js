@@ -1,177 +1,74 @@
+const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
+
 module.exports.config = {
-	name: "shortcut",
-	version: "1.0.0",
-	hasPermssion: 0,
-	credits: "𝐂𝐘𝐁𝐄𝐑 ☢️_𖣘 -𝐁𝐎𝐓 ⚠️ 𝑻𝑬𝑨𝑴_ ☢️",
-	description: "",
-	commandCategory: "system",
-    usages: "[all/delete/empty]",
-	cooldowns: 5,
-	dependencies: {
-		"fs-extra": "",
-        "path": ""
-	}
-}
+ name: "shoti",
+ version: "1.0.2",
+ hasPermission: 0,
+ credits: "Shaon Ahmed",
+ description: "Send a random shoti (TikTok short video)",
+ commandCategory: "media",
+ usages: "",
+ cooldowns: 5,
+};
 
-module.exports.languages = {
-    "vi": {
-        "misingKeyword": "「Shortcut」từ khóa nhận diện không được để trống!",
-        "shortcutExist": "「Shortcut」Input đã tồn tại từ trước!",
-        "requestResponse": "「Shortcut」Reply tin nhắn này để nhập câu trả lời khi sử dụng từ khóa",
-        "addSuccess": "「Shortcut」Đã thêm thành công shortcut mới, dươi đây là phần tổng quát:\n- ID:%1\n- Input: %2\n- Output: %3",
-        "listShortcutNull": "「Shortcut」hiện tại nhóm của bạn chưa có shortcut nào được set!",
-        "removeSuccess": "「Shortcut」Đã xóa thành công!",
-        "returnListShortcut": "「Shortcut」Dưới đây là toàn bộ shortcut nhóm có:\n[stt]/ [Input] => [Output]\n\n%1",
-        "requestKeyword": "「Shortcut」Reply tin nhắn này để nhập từ khóa cho shortcut"
-    },
-    "en": {
-        "misingKeyword": "「Shortcut」Keyword must not be blank!",
-        "shortcutExist": "「Shortcut」Input has already existed!",
-        "requestResponse": "「Shortcut」Reply this message to import the answer when use keyword",
-        "addSuccess": "「Shortcut」Added new shortcut, here is result:\n- ID:%1\n- Input: %2\n- Output: %3",
-        "listShortcutNull": "「Shortcut」Your thread have no shortcut!",
-        "removeSuccess": "「Shortcut」Removed shortcut!",
-        "returnListShortcut": "「Shortcut」These are shortcuts of this thread:\n[stt]/ [Input] => [Output]\n\n%1",
-        "requestKeyword": "「Shortcut」Reply this message to import keyword for shortcut"
-    }
-}
+module.exports.run = async function ({ api, event }) {
+ try {
+const apis = await axios.get('https://raw.githubusercontent.com/shaonproject/Shaon/main/api.json')
+ const Shaon = apis.data.alldl
 
-module.exports.onLoad = function () {
-    try {
-        const { existsSync, writeFileSync, readFileSync } = global.nodemodule["fs-extra"];
-        const { resolve } = global.nodemodule["path"];
-        const path = resolve(__dirname, "cache", "shortcutdata.json");
-        if (!global.moduleData.shortcut) global.moduleData.shortcut = new Map();
-        if (!existsSync(path)) writeFileSync(path, JSON.stringify([]), "utf-8");
-        const data = JSON.parse(readFileSync(path, "utf-8"));
-        if (typeof global.moduleData.shortcut == "undefined") global.moduleData.shortcut = new Map();
-        for (const threadData of data) global.moduleData.shortcut.set(threadData.threadID, threadData.shortcuts);
-    } catch (e) { console.log(e) }
-    return;
-}
+ const res = await axios.get(`${Shaon}/api/shoti`);
+ let data = res.data;
 
-module.exports.handleEvent = async function ({ event, api }) {
-    const { threadID, messageID, body } = event;
-    if (!global.moduleData.shortcut) global.moduleData.shortcut = new Map();
-    if (!global.moduleData.shortcut.has(threadID)) return;
-    const data = global.moduleData.shortcut.get(threadID);
+ // যদি অ্যারে হয়, তাহলে প্রথম অথবা র‍্যান্ডম আইটেম নাও
+ if (Array.isArray(data)) {
+ if (data.length === 0) {
+ return api.sendMessage("❌ কোনো ভিডিও পাওয়া যায়নি।", event.threadID, event.messageID);
+ }
+ data = data[Math.floor(Math.random() * data.length)];
+ }
 
-    if (data.some(item => item.input == body)) {
-        const dataThread = data.find(item => item.input == body);
-        return api.sendMessage(dataThread.output, threadID, messageID);
-    }
-}
+ const videoUrl = data.shotiurl || data.url;
+ if (!videoUrl) {
+ return api.sendMessage("❌ API did not return a video URL.", event.threadID, event.messageID);
+ }
 
-module.exports.handleReply = async function ({ event, api, handleReply, getText }) {
-    if (handleReply.author != event.senderID) return;
-    const { readFileSync, writeFileSync } = global.nodemodule["fs-extra"];
-    const { resolve } = global.nodemodule["path"];
-    const { threadID, messageID, senderID, body } = event;
-    const name = this.config.name;
+ const caption =
+ `🎬 𝗧𝗶𝘁𝗹𝗲: ${data.title || "N/A"}\n` +
+ `👤 𝗨𝘀𝗲𝗿: @${data.username || "N/A"}\n` +
+ `📛 𝗡𝗶𝗰𝗸𝗻𝗮𝗺𝗲: ${data.nickname || "N/A"}\n` +
+ `🌍 𝗥𝗲𝗴𝗶𝗼𝗻: ${data.region || "N/A"}\n` +
+ `⏱️ 𝗗𝘂𝗿𝗮𝘁𝗶𝗼𝗻: ${data.duration || "N/A"} sec\n` +
+ `👑 𝗢𝗽𝗲𝗿𝗮𝘁𝗼𝗿: ${data.operator || "N/A"}`;
 
-    const path = resolve(__dirname, "cache", "shortcutdata.json");
+ const fileName = `shoti_${Date.now()}.mp4`;
+ const filePath = path.join(__dirname, "cache", fileName);
 
-    switch (handleReply.type) {
-        case "requireInput": {
-            if (body.length == 0) return api.sendMessage(getText("misingKeyword"), threadID, messageID);
-            const data = global.moduleData.shortcut.get(threadID) || [];
-            if (data.some(item => item.input == body)) return api.sendMessage(getText("shortcutExist"), threadID, messageID);
-            api.unsendMessage(handleReply.messageID);
-            return api.sendMessage(getText("requestResponse"), threadID, function (error, info) {
-                return global.client.handleReply.push({
-                    type: "final",
-                    name,
-                    author: senderID,
-                    messageID: info.messageID,
-                    input: body
-                });
-            }, messageID);
-        }
-        case "final": {
-            const id = global.utils.randomString(10);
-            const readData = readFileSync(path, "utf-8");
-            var data = JSON.parse(readData);
-            var dataThread = data.find(item => item.threadID == threadID) || { threadID, shortcuts: [] };
-            var dataGlobal = global.moduleData.shortcut.get(threadID) || [];
-            const object = { id, input: handleReply.input, output: body || "empty" };
+ const writer = fs.createWriteStream(filePath);
+ const videoStream = await axios.get(videoUrl, { responseType: "stream" });
+ videoStream.data.pipe(writer);
 
-            dataThread.shortcuts.push(object);
-            dataGlobal.push(object);
+ writer.on("finish", () => {
+ api.sendMessage(
+ {
+ body: caption,
+ attachment: fs.createReadStream(filePath),
+ },
+ event.threadID,
+ () => {
+ fs.unlinkSync(filePath);
+ },
+ event.messageID
+ );
+ });
 
-            if (!data.some(item => item.threadID == threadID)) data.push(dataThread);
-            else {
-                const index = data.indexOf(data.find(item => item.threadID == threadID));
-                data[index] = dataThread;
-            }
-
-            global.moduleData.shortcut.set(threadID, dataGlobal);
-            writeFileSync(path, JSON.stringify(data, null, 4), "utf-8");
-
-            return api.sendMessage(getText("addSuccess", id, handleReply.input, body||"empty"), threadID, messageID);
-        }
-    }
-}
-
-module.exports.run = function ({ event, api, args, getText }) {
-    const { readFileSync, writeFileSync } = global.nodemodule["fs-extra"];
-    const { resolve } = global.nodemodule["path"];
-    const { threadID, messageID, senderID } = event;
-    const name = this.config.name;
-
-    const path = resolve(__dirname, "cache", "shortcutdata.json");
-
-    switch (args[0]) {
-        case "remove":
-        case "delete":
-        case "del":
-        case "-d": {
-            const readData = readFileSync(path, "utf-8");
-            var data = JSON.parse(readData);
-            const indexData = data.findIndex(item => item.threadID == threadID);
-            if (indexData == -1) return api.sendMessage(getText("listShortcutNull"), threadID, messageID);
-            var dataThread = data.find(item => item.threadID == threadID) || { threadID, shortcuts: [] };
-            var dataGlobal = global.moduleData.shortcut.get(threadID) || [];
-            var indexNeedRemove;
-
-            if (dataThread.shortcuts.length == 0) return api.sendMessage(getText("listShortcutNull"), threadID, messageID);
-
-            if (isNaN(args[1])) indexNeedRemove = args[1];
-            else indexNeedRemove = dataThread.shortcuts.findIndex(item => item.input == (args.slice(1, args.length)).join(" ") || item.id == (args.slice(1, args.length)).join(" "));
-            
-            dataThread.shortcuts.splice(indexNeedRemove, 1);
-            dataGlobal.splice(indexNeedRemove, 1);
-
-            global.moduleData.shortcut.set(threadID, dataGlobal);
-            data[indexData] = dataThread;
-            writeFileSync(path, JSON.stringify(data, null, 4), "utf-8");
-
-            return api.sendMessage(getText("removeSuccess"), threadID, messageID);
-        }
-
-        case "list":
-        case "all":
-        case "-a": {
-            const data = global.moduleData.shortcut.get(threadID) || [];
-            var array = [];
-            if (data.length == 0) return api.sendMessage(getText("listShortcutNull"), threadID, messageID);
-            else {
-                var n = 1;
-                for (const single of data) array.push(`${n++}/ ${single.input} => ${single.output}`);
-                return api.sendMessage(getText("returnListShortcut", array.join("\n")), threadID, messageID);
-            }
-        }
-
-        default: {
-            return api.sendMessage(getText("requestKeyword"), threadID, function (error, info) {
-                return global.client.handleReply.push({
-                    type: "requireInput",
-                    name,
-                    author: senderID,
-                    messageID: info.messageID
-                });
-            }, messageID);
-        }
-    }
-
-    
-}
+ writer.on("error", (err) => {
+ console.error("❌ File write error:", err);
+ api.sendMessage("⚠️ ভিডিও ফাইল সেভ করতে সমস্যা হয়েছে!", event.threadID, event.messageID);
+ });
+ } catch (err) {
+ console.error("❌ Shoti API error:", err.message);
+ api.sendMessage("❌ শটী ভিডিও আনতে সমস্যা হয়েছে। পরে চেষ্টা করুন।", event.threadID, event.messageID);
+ }
+};
